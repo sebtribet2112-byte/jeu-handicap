@@ -2,36 +2,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Jeu Handicap Invisible</title>
-<style>
+<title>Jeu Handicap Invisible</title><style>
 body { font-family: Arial; text-align:center; background:#0f172a; color:white; }
 button { padding:15px; margin:10px; font-size:18px; border-radius:10px; }
 .card { margin:20px; padding:20px; background:#1e293b; border-radius:15px; }
-</style>
-</head>
-<body><h1>🎯 Jeu Handicap Invisible</h1><div id="menu">
-<button onclick="createGame()">Créer une session</button>
+input { padding:10px; font-size:16px; }
+</style></head><body><h1>🎯 Jeu Handicap Invisible</h1><div id="menu">
+<button onclick="createGame()">Créer une session</button><br>
 <input id="codeInput" placeholder="Code session">
 <button onclick="joinGame()">Rejoindre</button>
 </div><div id="game" style="display:none;">
 <h2 id="role"></h2>
-<div class="card" id="mission"></div>
-<input id="guess" placeholder="Votre réponse">
-<button onclick="sendGuess()">Envoyer</button>
-<div id="timer"></div>
+<div class="card" id="mission"></div><input id="guess" placeholder="Votre réponse">
+<button onclick="sendGuess()">Envoyer</button><div id="timer"></div>
 </div><script>
-let session = "";
-let role = "";
+let role="";
+let currentAnswer="";
 
 function createGame(){
-session = Math.random().toString(36).substring(2,6);
-role = "acteur";
+role="acteur";
 startGame();
 }
 
 function joinGame(){
-session = document.getElementById("codeInput").value;
-role = "joueur";
+role="joueur";
 startGame();
 }
 
@@ -48,37 +42,48 @@ function generateMission(){
 const data = [
 {
 pathologie: "Dyslexie",
-mission: "Lis ce texte à voix haute : 'aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8'"
+mission: "Lis : aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8"
 },
 {
 pathologie: "TDAH",
-mission: "Lis un texte mais change de mot toutes les 2 secondes"
+mission: "Lis en changeant de mot toutes les 2 secondes"
 },
 {
 pathologie: "Anxiété",
-mission: "Lis rapidement comme si tu étais stressé"
+mission: "Lis comme si tu étais stressé"
 },
 {
 pathologie: "Fatigue chronique",
-mission: "Lis très lentement avec des pauses"
+mission: "Lis très lentement avec pauses"
 },
 {
 pathologie: "Trouble de concentration",
-mission: "Lis en t'arrêtant souvent comme si tu perdais le fil"
+mission: "Lis en t’arrêtant souvent"
 }
 ];
 
 const random = data[Math.floor(Math.random()*data.length)];
 
+currentAnswer = random.pathologie;
+
 if(role==="acteur"){
 document.getElementById("mission").innerText =
 "🎭 Mission : " + random.mission;
-window.currentAnswer = random.pathologie;
 }else{
 document.getElementById("mission").innerText =
-"🧠 Devine la pathologie !";
+"🧠 Devine la pathologie";
 }
 
+}
+
+function sendGuess(){
+const guess = document.getElementById("guess").value.toLowerCase();
+
+if(guess === currentAnswer.toLowerCase()){
+alert("✅ Bonne réponse !");
+}else{
+alert("❌ Mauvaise réponse : " + currentAnswer);
+}
 }
 
 function startTimer(){
@@ -89,16 +94,5 @@ t--;
 if(t<=0) clearInterval(interval);
 },1000);
 }
-
-function sendGuess(){
-const guess = document.getElementById("guess").value;
-
-if(guess.toLowerCase() === (window.currentAnswer || "").toLowerCase()){
-alert("✅ Bonne réponse !");
-}else{
-alert("❌ Mauvaise réponse");
-}
-}
-
 </script></body>
 </html>
