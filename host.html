@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#2d6a4f">
+<title>Animateur – Jeu Handicap Invisible</title>
+<style>
+:root{--vert:#2d6a4f;--vert2:#52b788;--or:#d4a843;--bg:#fefae0;--text:#1b2a1b;--grey:#6b7c6b;--soft:#f0faf4;--rouge:#e63946}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:Segoe UI,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.screen{display:none;min-height:100vh;flex-direction:column}
+.screen.active{display:flex}
+.topbar{background:var(--vert);padding:12px 16px;display:flex;align-items:center;gap:10px;min-height:56px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.topbar-title{font-size:1rem;font-weight:900;color:var(--or);flex:1}
+.badge{background:rgba(255,255,255,.15);color:#fff;padding:5px 12px;border-radius:99px;font-size:.78rem;font-weight:800}
+#setup{background:linear-gradient(160deg,#0a1a12,#2d6a4f);align-items:center;justify-content:center;padding:24px 20px;text-align:center;gap:16px}
+.title{font-size:1.8rem;font-weight:900;color:var(--or)}
+.sub{color:rgba(255,255,255,.72);max-width:370px;line-height:1.6}
+.card{background:#fff;border:2px solid #d8f3dc;border-radius:16px;padding:16px}
+.card-dark{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:16px;padding:20px;width:100%;max-width:380px}
+.label{font-size:.78rem;font-weight:800;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;text-align:left}
+.input{width:100%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.2);border-radius:10px;padding:12px;color:#fff;font-size:1rem;font-weight:700;outline:none;margin-bottom:14px}
+.input::placeholder{color:rgba(255,255,255,.35)}
+.row{display:flex;gap:8px;margin-bottom:14px}
+.smallBtn{flex:1;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.2);color:#fff;border-radius:10px;padding:10px 8px;font-weight:800;font-size:.82rem;cursor:pointer}
+.smallBtn.active{background:var(--or);color:var(--text);border-color:var(--or)}
+.btn{background:var(--or);color:var(--text);border:none;padding:16px;border-radius:99px;font-size:1rem;font-weight:900;cursor:pointer;width:100%;max-width:380px;box-shadow:0 5px 0 #9a7020}
+.body{padding:14px;display:flex;flex-direction:column;gap:12px;flex:1}
+.sessionCode{font-size:3rem;font-weight:900;color:var(--or);letter-spacing:8px;font-family:monospace;text-align:center}
+.qr{display:flex;justify-content:center;padding-top:12px}
+.qr img{width:160px;height:160px;background:#fff;border-radius:12px;padding:8px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.player{background:var(--soft);border:2px solid #d8f3dc;border-radius:12px;padding:10px 12px}
+.player .name{font-weight:800}
+.player .meta{font-size:.72rem;color:var(--grey)}
+.liveStatGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.liveStat{background:#fff;border:2px solid #d8f3dc;border-radius:12px;padding:12px;text-align:center}
+.liveNum{font-size:1.5rem;font-weight:900;color:var(--vert)}
+.liveLbl{font-size:.68rem;font-weight:800;color:var(--grey);text-transform:uppercase}
+.list{background:#fff;border:2px solid #d8f3dc;border-radius:16px;padding:16px}
+.rowItem{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0}
+.rowItem:last-child{border-bottom:none}
+.pts{font-size:1.2rem;font-weight:900;color:var(--or)}
+.missionBox{background:#fff;border:2px solid #d8f3dc;border-radius:16px;padding:16px;line-height:1.6}
+.hidden{display:none!important}
+.notice{font-size:.82rem;color:var(--grey);line-height:1.6}
+.resultsBody{padding:20px;max-width:560px;margin:0 auto;width:100%}
+.podium{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:14px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.podium.first{background:rgba(212,168,67,.2);border-color:rgba(212,168,67,.4)}
+.white{color:#fff}
+</style>
+</head>
+<body>
+<div class="screen active" id="setup">
+  <div class="title">🎯 Animateur</div>
+  <div class="sub">Jeu complet multijoueur : un joueur incarne une pathologie invisible, les autres doivent la deviner.</div>
+  <div class="card-dark">
+    <div class="label">Nom de la session</div>
+    <input class="input" id="sessionName" placeholder="Ex: Sensibilisation 2026" maxlength="30">
+    <div class="label">Questions par joueur</div>
+    <div class="row" id="qRow"></div>
+    <div class="label">Immersion</div>
+    <div class="row" id="dRow"></div>
+  </div>
+  <button class="btn" onclick="createSession()">Créer la session</button>
+</div>
+
+<div class="screen" id="lobby">
+  <div class="topbar"><div class="topbar-title">🕓 Salle d'attente</div><div class="badge" id="lobbyCount">0 joueur</div></div>
+  <div class="body">
+    <div class="card" style="background:linear-gradient(135deg,var(--vert),#1a3a2d);color:#fff;border:none">
+      <div style="font-size:.82rem;opacity:.8;text-align:center">Code de session</div>
+      <div class="sessionCode" id="sessionCode">------</div>
+      <div class="notice" style="text-align:center;color:rgba(255,255,255,.75)">Les joueurs scannent le QR code ou entrent ce code</div>
+      <div class="qr"><img id="qrImg" alt="QR code"></div>
+      <div class="notice" id="playerUrl" style="text-align:center;color:rgba(255,255,255,.75);margin-top:10px;word-break:break-all"></div>
+    </div>
+    <div class="list"><div style="font-weight:900;color:var(--vert);margin-bottom:10px">👥 Joueurs connectés</div><div class="grid" id="playersGrid"></div></div>
+    <button class="btn hidden" id="startBtn" onclick="startGame()">Lancer la partie</button>
+  </div>
+</div>
+
+<div class="screen" id="live">
+  <div class="topbar"><div class="topbar-title">📊 Partie en direct</div><div class="badge" id="livePhase">Manche 1</div></div>
+  <div class="body">
+    <div class="liveStatGrid">
+      <div class="liveStat"><div class="liveNum" id="stPlayers">0</div><div class="liveLbl">Joueurs</div></div>
+      <div class="liveStat"><div class="liveNum" id="stRound">1</div><div class="liveLbl">Manche</div></div>
+      <div class="liveStat"><div class="liveNum" id="stAnswers">0</div><div class="liveLbl">Réponses</div></div>
+      <div class="liveStat"><div class="liveNum" id="stTime">20</div><div class="liveLbl">Temps</div></div>
+    </div>
+    <div class="missionBox">
+      <div style="font-size:.8rem;font-weight:900;color:var(--vert);margin-bottom:8px">MISSION ACTUELLE</div>
+      <div id="currentActor" style="font-weight:900;margin-bottom:8px"></div>
+      <div id="currentMission"></div>
+      <div class="notice" id="currentHint" style="margin-top:8px"></div>
+    </div>
+    <div class="list">
+      <div style="font-weight:900;color:var(--vert);margin-bottom:10px">🏆 Classement</div>
+      <div id="scoreList"></div>
+    </div>
+    <div class="list">
+      <div style="font-weight:900;color:var(--vert);margin-bottom:10px">⚡ Activité récente</div>
+      <div id="activityList"></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn" style="max-width:none" onclick="nextRound()">Manche suivante</button>
+      <button class="btn" style="max-width:none" onclick="finishGame()">Résultats</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="results" style="background:linear-gradient(160deg,#0a1a12,#2d6a4f)">
+  <div class="topbar" style="background:rgba(0,0,0,.25)"><div class="topbar-title">🏁 Résultats finaux</div></div>
+  <div class="resultsBody">
+    <div class="title" style="text-align:center">Classement final</div>
+    <div class="sub" id="resultsMeta" style="text-align:center;max-width:none;margin:10px 0 20px;color:rgba(255,255,255,.72)"></div>
+    <div id="podium"></div>
+    <button class="btn" onclick="resetToSetup()" style="margin-top:16px;max-width:none">Nouvelle session</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBKFwb14VXIAvkgLZDCIR58xD9gjRqWqoQ",
+  authDomain: "quiz-oldy-sebastien.firebaseapp.com",
+  databaseURL: "https://quiz-oldy-sebastien-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "quiz-oldy-sebastien",
+  storageBucket: "quiz-oldy-sebastien.firebasestorage.app",
+  messagingSenderId: "315241947179",
+  appId: "1:315241947179:web:48c53a445565654e338a6e"
+};
+const PLAYER_URL = "quiz_player.html";
+const GAME_DATA = [{"id": 1, "pathologie": "Dyslexie", "missionTemplate": "Lis ce texte sans corriger les erreurs : {text}", "text": "aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8 et c'est le 7 qrimtemqs pui arrivent 6", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 2, "pathologie": "TDAH", "missionTemplate": "Lis très lentement avec des pauses : {text}", "text": "le 10 matin je me suis reveille 9 avec une sensasion bizare 8 comme si tout ete flou 7 et lent 6", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 3, "pathologie": "Anxiété généralisée", "missionTemplate": "Lis rapidement comme si tu étais stressé : {text}", "text": "hier 10 je suis alle au travaile 9 mais les mots se melange 8 et je narrive pas a lire 7 correctement 6", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 4, "pathologie": "Fatigue chronique", "missionTemplate": "Lis en changeant de rythme toutes les 2 secondes : {text}", "text": "je parle 10 mais les mots sortent 9 pas comme je veux 8 et je dois reflechir 7 a chaque phrase 6", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 5, "pathologie": "Trouble de concentration", "missionTemplate": "Lis en t'arrêtant souvent comme si tu perdais le fil : {text}", "text": "dans 10 la piece il y a 9 trop de bruit 8 trop de lumiere 7 et mon cerveau 6 fatigue tres vite 5", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 6, "pathologie": "Dyspraxie", "missionTemplate": "Lis puis recommence la dernière phrase dès qu'un chiffre apparaît : {text}", "text": "je veu 10 lire vite 9 mais les lettres 8 se cassent 7 dans ma tete 6 et je perd 5 le fil 4", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 7, "pathologie": "Dyscalculie", "missionTemplate": "Lis ce texte à voix haute en gardant ton calme malgré la pression du chrono : {text}", "text": "tout 10 semble simple 9 mais mon esprit 8 saute dune idee 7 a lautre 6 sans prevenir 5", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 8, "pathologie": "Dysorthographie", "missionTemplate": "Lis ce texte sans corriger les erreurs : {text}", "text": "je sais 10 quoi dire 9 mais quand je parle 8 les mots restent 7 bloques 6 ou se melangent 5", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 9, "pathologie": "Dysphasie", "missionTemplate": "Lis très lentement avec des pauses : {text}", "text": "aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8 et c'est le 7 qrimtemqs pui arrivent 6", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 10, "pathologie": "Autisme", "missionTemplate": "Lis rapidement comme si tu étais stressé : {text}", "text": "le 10 matin je me suis reveille 9 avec une sensasion bizare 8 comme si tout ete flou 7 et lent 6", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 11, "pathologie": "Phobie sociale", "missionTemplate": "Lis en changeant de rythme toutes les 2 secondes : {text}", "text": "hier 10 je suis alle au travaile 9 mais les mots se melange 8 et je narrive pas a lire 7 correctement 6", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 12, "pathologie": "TOC", "missionTemplate": "Lis en t'arrêtant souvent comme si tu perdais le fil : {text}", "text": "je parle 10 mais les mots sortent 9 pas comme je veux 8 et je dois reflechir 7 a chaque phrase 6", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 13, "pathologie": "Dépression", "missionTemplate": "Lis puis recommence la dernière phrase dès qu'un chiffre apparaît : {text}", "text": "dans 10 la piece il y a 9 trop de bruit 8 trop de lumiere 7 et mon cerveau 6 fatigue tres vite 5", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 14, "pathologie": "Burn-out", "missionTemplate": "Lis ce texte à voix haute en gardant ton calme malgré la pression du chrono : {text}", "text": "je veu 10 lire vite 9 mais les lettres 8 se cassent 7 dans ma tete 6 et je perd 5 le fil 4", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 15, "pathologie": "Bipolarité", "missionTemplate": "Lis ce texte sans corriger les erreurs : {text}", "text": "tout 10 semble simple 9 mais mon esprit 8 saute dune idee 7 a lautre 6 sans prevenir 5", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 16, "pathologie": "Schizophrénie stabilisée", "missionTemplate": "Lis très lentement avec des pauses : {text}", "text": "je sais 10 quoi dire 9 mais quand je parle 8 les mots restent 7 bloques 6 ou se melangent 5", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 17, "pathologie": "Épilepsie", "missionTemplate": "Lis rapidement comme si tu étais stressé : {text}", "text": "aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8 et c'est le 7 qrimtemqs pui arrivent 6", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 18, "pathologie": "Fibromyalgie", "missionTemplate": "Lis en changeant de rythme toutes les 2 secondes : {text}", "text": "le 10 matin je me suis reveille 9 avec une sensasion bizare 8 comme si tout ete flou 7 et lent 6", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 19, "pathologie": "Endométriose", "missionTemplate": "Lis en t'arrêtant souvent comme si tu perdais le fil : {text}", "text": "hier 10 je suis alle au travaile 9 mais les mots se melange 8 et je narrive pas a lire 7 correctement 6", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 20, "pathologie": "Migraine chronique", "missionTemplate": "Lis puis recommence la dernière phrase dès qu'un chiffre apparaît : {text}", "text": "je parle 10 mais les mots sortent 9 pas comme je veux 8 et je dois reflechir 7 a chaque phrase 6", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 21, "pathologie": "Maladie de Crohn", "missionTemplate": "Lis ce texte à voix haute en gardant ton calme malgré la pression du chrono : {text}", "text": "dans 10 la piece il y a 9 trop de bruit 8 trop de lumiere 7 et mon cerveau 6 fatigue tres vite 5", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 22, "pathologie": "Sclérose en plaques", "missionTemplate": "Lis ce texte sans corriger les erreurs : {text}", "text": "je veu 10 lire vite 9 mais les lettres 8 se cassent 7 dans ma tete 6 et je perd 5 le fil 4", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 23, "pathologie": "Parkinson", "missionTemplate": "Lis très lentement avec des pauses : {text}", "text": "tout 10 semble simple 9 mais mon esprit 8 saute dune idee 7 a lautre 6 sans prevenir 5", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 24, "pathologie": "Narcolepsie", "missionTemplate": "Lis rapidement comme si tu étais stressé : {text}", "text": "je sais 10 quoi dire 9 mais quand je parle 8 les mots restent 7 bloques 6 ou se melangent 5", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 25, "pathologie": "Insomnie chronique", "missionTemplate": "Lis en changeant de rythme toutes les 2 secondes : {text}", "text": "aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8 et c'est le 7 qrimtemqs pui arrivent 6", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 26, "pathologie": "Stress post-traumatique", "missionTemplate": "Lis en t'arrêtant souvent comme si tu perdais le fil : {text}", "text": "le 10 matin je me suis reveille 9 avec une sensasion bizare 8 comme si tout ete flou 7 et lent 6", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 27, "pathologie": "Hyperacousie", "missionTemplate": "Lis puis recommence la dernière phrase dès qu'un chiffre apparaît : {text}", "text": "hier 10 je suis alle au travaile 9 mais les mots se melange 8 et je narrive pas a lire 7 correctement 6", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 28, "pathologie": "Acouphènes", "missionTemplate": "Lis ce texte à voix haute en gardant ton calme malgré la pression du chrono : {text}", "text": "je parle 10 mais les mots sortent 9 pas comme je veux 8 et je dois reflechir 7 a chaque phrase 6", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 29, "pathologie": "Diabète de type 1", "missionTemplate": "Lis ce texte sans corriger les erreurs : {text}", "text": "dans 10 la piece il y a 9 trop de bruit 8 trop de lumiere 7 et mon cerveau 6 fatigue tres vite 5", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 30, "pathologie": "Asthme sévère", "missionTemplate": "Lis très lentement avec des pauses : {text}", "text": "je veu 10 lire vite 9 mais les lettres 8 se cassent 7 dans ma tete 6 et je perd 5 le fil 4", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 31, "pathologie": "Cancer en rémission", "missionTemplate": "Lis rapidement comme si tu étais stressé : {text}", "text": "tout 10 semble simple 9 mais mon esprit 8 saute dune idee 7 a lautre 6 sans prevenir 5", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 32, "pathologie": "Polyarthrite rhumatoïde", "missionTemplate": "Lis en changeant de rythme toutes les 2 secondes : {text}", "text": "je sais 10 quoi dire 9 mais quand je parle 8 les mots restent 7 bloques 6 ou se melangent 5", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 33, "pathologie": "Lupus", "missionTemplate": "Lis en t'arrêtant souvent comme si tu perdais le fil : {text}", "text": "aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8 et c'est le 7 qrimtemqs pui arrivent 6", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 34, "pathologie": "Trouble mnésique", "missionTemplate": "Lis puis recommence la dernière phrase dès qu'un chiffre apparaît : {text}", "text": "le 10 matin je me suis reveille 9 avec une sensasion bizare 8 comme si tout ete flou 7 et lent 6", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 35, "pathologie": "Trouble exécutif", "missionTemplate": "Lis ce texte à voix haute en gardant ton calme malgré la pression du chrono : {text}", "text": "hier 10 je suis alle au travaile 9 mais les mots se melange 8 et je narrive pas a lire 7 correctement 6", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 36, "pathologie": "Hypersensibilité sensorielle", "missionTemplate": "Lis ce texte sans corriger les erreurs : {text}", "text": "je parle 10 mais les mots sortent 9 pas comme je veux 8 et je dois reflechir 7 a chaque phrase 6", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 37, "pathologie": "Trouble anxieux sévère", "missionTemplate": "Lis très lentement avec des pauses : {text}", "text": "dans 10 la piece il y a 9 trop de bruit 8 trop de lumiere 7 et mon cerveau 6 fatigue tres vite 5", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 38, "pathologie": "Trouble dépressif majeur", "missionTemplate": "Lis rapidement comme si tu étais stressé : {text}", "text": "je veu 10 lire vite 9 mais les lettres 8 se cassent 7 dans ma tete 6 et je perd 5 le fil 4", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 39, "pathologie": "Maladie invisible", "missionTemplate": "Lis en changeant de rythme toutes les 2 secondes : {text}", "text": "tout 10 semble simple 9 mais mon esprit 8 saute dune idee 7 a lautre 6 sans prevenir 5", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 40, "pathologie": "Handicap invisible", "missionTemplate": "Lis en t'arrêtant souvent comme si tu perdais le fil : {text}", "text": "je sais 10 quoi dire 9 mais quand je parle 8 les mots restent 7 bloques 6 ou se melangent 5", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 41, "pathologie": "Trouble du traitement auditif", "missionTemplate": "Lis puis recommence la dernière phrase dès qu'un chiffre apparaît : {text}", "text": "aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8 et c'est le 7 qrimtemqs pui arrivent 6", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 42, "pathologie": "Aphasie légère", "missionTemplate": "Lis ce texte à voix haute en gardant ton calme malgré la pression du chrono : {text}", "text": "le 10 matin je me suis reveille 9 avec une sensasion bizare 8 comme si tout ete flou 7 et lent 6", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 43, "pathologie": "Alexithymie", "missionTemplate": "Lis ce texte sans corriger les erreurs : {text}", "text": "hier 10 je suis alle au travaile 9 mais les mots se melange 8 et je narrive pas a lire 7 correctement 6", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 44, "pathologie": "Prosopagnosie légère", "missionTemplate": "Lis très lentement avec des pauses : {text}", "text": "je parle 10 mais les mots sortent 9 pas comme je veux 8 et je dois reflechir 7 a chaque phrase 6", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 45, "pathologie": "Trouble visuo-spatial", "missionTemplate": "Lis rapidement comme si tu étais stressé : {text}", "text": "dans 10 la piece il y a 9 trop de bruit 8 trop de lumiere 7 et mon cerveau 6 fatigue tres vite 5", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 46, "pathologie": "Syndrome post-chimiothérapie", "missionTemplate": "Lis en changeant de rythme toutes les 2 secondes : {text}", "text": "je veu 10 lire vite 9 mais les lettres 8 se cassent 7 dans ma tete 6 et je perd 5 le fil 4", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 47, "pathologie": "VIH stabilisé", "missionTemplate": "Lis en t'arrêtant souvent comme si tu perdais le fil : {text}", "text": "tout 10 semble simple 9 mais mon esprit 8 saute dune idee 7 a lautre 6 sans prevenir 5", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 48, "pathologie": "Insuffisance rénale chronique", "missionTemplate": "Lis puis recommence la dernière phrase dès qu'un chiffre apparaît : {text}", "text": "je sais 10 quoi dire 9 mais quand je parle 8 les mots restent 7 bloques 6 ou se melangent 5", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 49, "pathologie": "Arythmie cardiaque", "missionTemplate": "Lis ce texte à voix haute en gardant ton calme malgré la pression du chrono : {text}", "text": "aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8 et c'est le 7 qrimtemqs pui arrivent 6", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 50, "pathologie": "Hypotension orthostatique", "missionTemplate": "Lis ce texte sans corriger les erreurs : {text}", "text": "le 10 matin je me suis reveille 9 avec une sensasion bizare 8 comme si tout ete flou 7 et lent 6", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 51, "pathologie": "Syndrome douloureux régional complexe", "missionTemplate": "Lis très lentement avec des pauses : {text}", "text": "hier 10 je suis alle au travaile 9 mais les mots se melange 8 et je narrive pas a lire 7 correctement 6", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 52, "pathologie": "Algie vasculaire de la face", "missionTemplate": "Lis rapidement comme si tu étais stressé : {text}", "text": "je parle 10 mais les mots sortent 9 pas comme je veux 8 et je dois reflechir 7 a chaque phrase 6", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 53, "pathologie": "Névralgie du trijumeau", "missionTemplate": "Lis en changeant de rythme toutes les 2 secondes : {text}", "text": "dans 10 la piece il y a 9 trop de bruit 8 trop de lumiere 7 et mon cerveau 6 fatigue tres vite 5", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 54, "pathologie": "Dermatite atopique sévère", "missionTemplate": "Lis en t'arrêtant souvent comme si tu perdais le fil : {text}", "text": "je veu 10 lire vite 9 mais les lettres 8 se cassent 7 dans ma tete 6 et je perd 5 le fil 4", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 55, "pathologie": "Allergies sévères", "missionTemplate": "Lis puis recommence la dernière phrase dès qu'un chiffre apparaît : {text}", "text": "tout 10 semble simple 9 mais mon esprit 8 saute dune idee 7 a lautre 6 sans prevenir 5", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 56, "pathologie": "Mutisme sélectif", "missionTemplate": "Lis ce texte à voix haute en gardant ton calme malgré la pression du chrono : {text}", "text": "je sais 10 quoi dire 9 mais quand je parle 8 les mots restent 7 bloques 6 ou se melangent 5", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 57, "pathologie": "Trouble panique", "missionTemplate": "Lis ce texte sans corriger les erreurs : {text}", "text": "aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8 et c'est le 7 qrimtemqs pui arrivent 6", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 58, "pathologie": "Agoraphobie", "missionTemplate": "Lis très lentement avec des pauses : {text}", "text": "le 10 matin je me suis reveille 9 avec une sensasion bizare 8 comme si tout ete flou 7 et lent 6", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 59, "pathologie": "Trouble dissociatif", "missionTemplate": "Lis rapidement comme si tu étais stressé : {text}", "text": "hier 10 je suis alle au travaile 9 mais les mots se melange 8 et je narrive pas a lire 7 correctement 6", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 60, "pathologie": "Trouble borderline", "missionTemplate": "Lis en changeant de rythme toutes les 2 secondes : {text}", "text": "je parle 10 mais les mots sortent 9 pas comme je veux 8 et je dois reflechir 7 a chaque phrase 6", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 61, "pathologie": "Trouble schizo-affectif", "missionTemplate": "Lis en t'arrêtant souvent comme si tu perdais le fil : {text}", "text": "dans 10 la piece il y a 9 trop de bruit 8 trop de lumiere 7 et mon cerveau 6 fatigue tres vite 5", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 62, "pathologie": "Anorexie en rétablissement", "missionTemplate": "Lis puis recommence la dernière phrase dès qu'un chiffre apparaît : {text}", "text": "je veu 10 lire vite 9 mais les lettres 8 se cassent 7 dans ma tete 6 et je perd 5 le fil 4", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 63, "pathologie": "Boulimie", "missionTemplate": "Lis ce texte à voix haute en gardant ton calme malgré la pression du chrono : {text}", "text": "tout 10 semble simple 9 mais mon esprit 8 saute dune idee 7 a lautre 6 sans prevenir 5", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 64, "pathologie": "Hyperphagie", "missionTemplate": "Lis ce texte sans corriger les erreurs : {text}", "text": "je sais 10 quoi dire 9 mais quand je parle 8 les mots restent 7 bloques 6 ou se melangent 5", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 65, "pathologie": "Addiction alcool en rémission", "missionTemplate": "Lis très lentement avec des pauses : {text}", "text": "aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8 et c'est le 7 qrimtemqs pui arrivent 6", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 66, "pathologie": "Addiction aux jeux vidéo", "missionTemplate": "Lis rapidement comme si tu étais stressé : {text}", "text": "le 10 matin je me suis reveille 9 avec une sensasion bizare 8 comme si tout ete flou 7 et lent 6", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 67, "pathologie": "Addiction aux réseaux sociaux", "missionTemplate": "Lis en changeant de rythme toutes les 2 secondes : {text}", "text": "hier 10 je suis alle au travaile 9 mais les mots se melange 8 et je narrive pas a lire 7 correctement 6", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 68, "pathologie": "Dépendance tabagique", "missionTemplate": "Lis en t'arrêtant souvent comme si tu perdais le fil : {text}", "text": "je parle 10 mais les mots sortent 9 pas comme je veux 8 et je dois reflechir 7 a chaque phrase 6", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 69, "pathologie": "Haut potentiel hypersensible", "missionTemplate": "Lis puis recommence la dernière phrase dès qu'un chiffre apparaît : {text}", "text": "dans 10 la piece il y a 9 trop de bruit 8 trop de lumiere 7 et mon cerveau 6 fatigue tres vite 5", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 70, "pathologie": "Trouble du sommeil", "missionTemplate": "Lis ce texte à voix haute en gardant ton calme malgré la pression du chrono : {text}", "text": "je veu 10 lire vite 9 mais les lettres 8 se cassent 7 dans ma tete 6 et je perd 5 le fil 4", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 71, "pathologie": "Apnée du sommeil", "missionTemplate": "Lis ce texte sans corriger les erreurs : {text}", "text": "tout 10 semble simple 9 mais mon esprit 8 saute dune idee 7 a lautre 6 sans prevenir 5", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 72, "pathologie": "Covid long", "missionTemplate": "Lis très lentement avec des pauses : {text}", "text": "je sais 10 quoi dire 9 mais quand je parle 8 les mots restent 7 bloques 6 ou se melangent 5", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 73, "pathologie": "Encéphalomyélite myalgique", "missionTemplate": "Lis rapidement comme si tu étais stressé : {text}", "text": "aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8 et c'est le 7 qrimtemqs pui arrivent 6", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 74, "pathologie": "Vertiges chroniques", "missionTemplate": "Lis en changeant de rythme toutes les 2 secondes : {text}", "text": "le 10 matin je me suis reveille 9 avec une sensasion bizare 8 comme si tout ete flou 7 et lent 6", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 75, "pathologie": "Maladie de Ménière", "missionTemplate": "Lis en t'arrêtant souvent comme si tu perdais le fil : {text}", "text": "hier 10 je suis alle au travaile 9 mais les mots se melange 8 et je narrive pas a lire 7 correctement 6", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 76, "pathologie": "Photophobie", "missionTemplate": "Lis puis recommence la dernière phrase dès qu'un chiffre apparaît : {text}", "text": "je parle 10 mais les mots sortent 9 pas comme je veux 8 et je dois reflechir 7 a chaque phrase 6", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 77, "pathologie": "Déficience visuelle légère", "missionTemplate": "Lis ce texte à voix haute en gardant ton calme malgré la pression du chrono : {text}", "text": "dans 10 la piece il y a 9 trop de bruit 8 trop de lumiere 7 et mon cerveau 6 fatigue tres vite 5", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 78, "pathologie": "Trouble auditif fluctuant", "missionTemplate": "Lis ce texte sans corriger les erreurs : {text}", "text": "je veu 10 lire vite 9 mais les lettres 8 se cassent 7 dans ma tete 6 et je perd 5 le fil 4", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 79, "pathologie": "Maladie cœliaque", "missionTemplate": "Lis très lentement avec des pauses : {text}", "text": "tout 10 semble simple 9 mais mon esprit 8 saute dune idee 7 a lautre 6 sans prevenir 5", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 80, "pathologie": "Syndrome de l'intestin irritable", "missionTemplate": "Lis rapidement comme si tu étais stressé : {text}", "text": "je sais 10 quoi dire 9 mais quand je parle 8 les mots restent 7 bloques 6 ou se melangent 5", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 81, "pathologie": "Rectocolite hémorragique", "missionTemplate": "Lis en changeant de rythme toutes les 2 secondes : {text}", "text": "aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8 et c'est le 7 qrimtemqs pui arrivent 6", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 82, "pathologie": "Hypoglycémie récurrente", "missionTemplate": "Lis en t'arrêtant souvent comme si tu perdais le fil : {text}", "text": "le 10 matin je me suis reveille 9 avec une sensasion bizare 8 comme si tout ete flou 7 et lent 6", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 83, "pathologie": "Hypothyroïdie", "missionTemplate": "Lis puis recommence la dernière phrase dès qu'un chiffre apparaît : {text}", "text": "hier 10 je suis alle au travaile 9 mais les mots se melange 8 et je narrive pas a lire 7 correctement 6", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 84, "pathologie": "Spondylarthrite ankylosante", "missionTemplate": "Lis ce texte à voix haute en gardant ton calme malgré la pression du chrono : {text}", "text": "je parle 10 mais les mots sortent 9 pas comme je veux 8 et je dois reflechir 7 a chaque phrase 6", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 85, "pathologie": "Syndrome d'Ehlers-Danlos", "missionTemplate": "Lis ce texte sans corriger les erreurs : {text}", "text": "dans 10 la piece il y a 9 trop de bruit 8 trop de lumiere 7 et mon cerveau 6 fatigue tres vite 5", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 86, "pathologie": "Mucoviscidose", "missionTemplate": "Lis très lentement avec des pauses : {text}", "text": "je veu 10 lire vite 9 mais les lettres 8 se cassent 7 dans ma tete 6 et je perd 5 le fil 4", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 87, "pathologie": "BPCO débutante", "missionTemplate": "Lis rapidement comme si tu étais stressé : {text}", "text": "tout 10 semble simple 9 mais mon esprit 8 saute dune idee 7 a lautre 6 sans prevenir 5", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 88, "pathologie": "Traumatisme crânien léger séquellaire", "missionTemplate": "Lis en changeant de rythme toutes les 2 secondes : {text}", "text": "je sais 10 quoi dire 9 mais quand je parle 8 les mots restent 7 bloques 6 ou se melangent 5", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 89, "pathologie": "AVC avec séquelles invisibles", "missionTemplate": "Lis en t'arrêtant souvent comme si tu perdais le fil : {text}", "text": "aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8 et c'est le 7 qrimtemqs pui arrivent 6", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 90, "pathologie": "Trouble neurologique fonctionnel", "missionTemplate": "Lis puis recommence la dernière phrase dès qu'un chiffre apparaît : {text}", "text": "le 10 matin je me suis reveille 9 avec une sensasion bizare 8 comme si tout ete flou 7 et lent 6", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 91, "pathologie": "Handicap psychique stabilisé", "missionTemplate": "Lis ce texte à voix haute en gardant ton calme malgré la pression du chrono : {text}", "text": "hier 10 je suis alle au travaile 9 mais les mots se melange 8 et je narrive pas a lire 7 correctement 6", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 92, "pathologie": "Trouble de la mémoire de travail", "missionTemplate": "Lis ce texte sans corriger les erreurs : {text}", "text": "je parle 10 mais les mots sortent 9 pas comme je veux 8 et je dois reflechir 7 a chaque phrase 6", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 93, "pathologie": "Trouble attentionnel soutenu", "missionTemplate": "Lis très lentement avec des pauses : {text}", "text": "dans 10 la piece il y a 9 trop de bruit 8 trop de lumiere 7 et mon cerveau 6 fatigue tres vite 5", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 94, "pathologie": "Trouble adaptatif", "missionTemplate": "Lis rapidement comme si tu étais stressé : {text}", "text": "je veu 10 lire vite 9 mais les lettres 8 se cassent 7 dans ma tete 6 et je perd 5 le fil 4", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 95, "pathologie": "Trouble psychosomatique", "missionTemplate": "Lis en changeant de rythme toutes les 2 secondes : {text}", "text": "tout 10 semble simple 9 mais mon esprit 8 saute dune idee 7 a lautre 6 sans prevenir 5", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 96, "pathologie": "Trouble chronique invisible", "missionTemplate": "Lis en t'arrêtant souvent comme si tu perdais le fil : {text}", "text": "je sais 10 quoi dire 9 mais quand je parle 8 les mots restent 7 bloques 6 ou se melangent 5", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 97, "pathologie": "Maladie rare invalidante", "missionTemplate": "Lis puis recommence la dernière phrase dès qu'un chiffre apparaît : {text}", "text": "aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8 et c'est le 7 qrimtemqs pui arrivent 6", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 98, "pathologie": "Trouble immunitaire", "missionTemplate": "Lis ce texte à voix haute en gardant ton calme malgré la pression du chrono : {text}", "text": "le 10 matin je me suis reveille 9 avec une sensasion bizare 8 comme si tout ete flou 7 et lent 6", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}, {"id": 99, "pathologie": "Trouble hormonal", "missionTemplate": "Lis ce texte sans corriger les erreurs : {text}", "text": "hier 10 je suis alle au travaile 9 mais les mots se melange 8 et je narrive pas a lire 7 correctement 6", "indice": "Les symptômes peuvent fluctuer selon la fatigue, le stress ou l'environnement."}, {"id": 100, "pathologie": "Trouble respiratoire", "missionTemplate": "Lis très lentement avec des pauses : {text}", "text": "je parle 10 mais les mots sortent 9 pas comme je veux 8 et je dois reflechir 7 a chaque phrase 6", "indice": "Le jeu ne remplace pas la réalité, il sert à sensibiliser."}, {"id": 101, "pathologie": "Trouble cardiovasculaire", "missionTemplate": "Lis rapidement comme si tu étais stressé : {text}", "text": "dans 10 la piece il y a 9 trop de bruit 8 trop de lumiere 7 et mon cerveau 6 fatigue tres vite 5", "indice": "Ce trouble peut rendre la lecture, l'attention ou l'endurance plus difficiles."}, {"id": 102, "pathologie": "Trouble métabolique", "missionTemplate": "Lis en changeant de rythme toutes les 2 secondes : {text}", "text": "je veu 10 lire vite 9 mais les lettres 8 se cassent 7 dans ma tete 6 et je perd 5 le fil 4", "indice": "Les difficultés sont réelles mais souvent invisibles pour l'entourage."}, {"id": 103, "pathologie": "Trouble génétique", "missionTemplate": "Lis en t'arrêtant souvent comme si tu perdais le fil : {text}", "text": "tout 10 semble simple 9 mais mon esprit 8 saute dune idee 7 a lautre 6 sans prevenir 5", "indice": "Le quotidien paraît simple vu de l'extérieur, mais demande un effort important."}];
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+
+let sessionCode=null, sessionRef=null, players={}, qPerPlayer=5, immersion='mixte', activity=[];
+const qOptions=[5,10,15,20];
+const dOptions=[{v:'normal',l:'Normal'},{v:'mixte',l:'Mélange'},{v:'hardcore',l:'Hardcore'}];
+
+window.onload=()=>{
+  const qRow=document.getElementById('qRow');
+  qOptions.forEach(n=>{ const b=document.createElement('button'); b.className='smallBtn'+(n===qPerPlayer?' active':''); b.textContent=n+' Q'; b.onclick=()=>{qPerPlayer=n;document.querySelectorAll('#qRow .smallBtn').forEach(x=>x.classList.remove('active'));b.classList.add('active')}; qRow.appendChild(b); });
+  const dRow=document.getElementById('dRow');
+  dOptions.forEach(d=>{ const b=document.createElement('button'); b.className='smallBtn'+(d.v===immersion?' active':''); b.textContent=d.l; b.onclick=()=>{immersion=d.v;document.querySelectorAll('#dRow .smallBtn').forEach(x=>x.classList.remove('active'));b.classList.add('active')}; dRow.appendChild(b); });
+};
+
+function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0)}
+function codeGen(){return Math.random().toString(36).substr(2,6).toUpperCase()}
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function createChoices(correct){ const others=shuffle(GAME_DATA.filter(x=>x.pathologie!==correct)).slice(0,3).map(x=>x.pathologie); return shuffle([correct,...others]); }
+function chooseCard(){ const base=GAME_DATA[Math.floor(Math.random()*GAME_DATA.length)]; return {
+  id: base.id,
+  pathologie: base.pathologie,
+  mission: base.missionTemplate.replace('{text}', base.text),
+  indice: base.indice,
+  difficulty: immersion,
+  choices: createChoices(base.pathologie),
+  timeLimit: immersion==='hardcore'?15:(immersion==='mixte'?20:25)
+}; }
+
+async function createSession(){
+  const name=document.getElementById('sessionName').value.trim() || 'Session Handicap Invisible';
+  sessionCode=codeGen();
+  sessionRef=db.ref('sessions/'+sessionCode);
+  await sessionRef.set({
+    nom:name, code:sessionCode, statut:'lobby', qParJoueur:qPerPlayer, difficulte:immersion,
+    createdAt:Date.now(), joueurs:{}, currentRound:null
+  });
+  document.getElementById('sessionCode').textContent=sessionCode;
+  const url = PLAYER_URL + '?code=' + sessionCode;
+  document.getElementById('playerUrl').textContent=url;
+  document.getElementById('qrImg').src='https://api.qrserver.com/v1/create-qr-code/?size=160x160&data='+encodeURIComponent(url);
+  listenLobby();
+  go('lobby');
+}
+
+function listenLobby(){
+  sessionRef.child('joueurs').on('value', snap=>{
+    players=snap.val()||{};
+    renderLobbyPlayers();
+  });
+}
+
+function renderLobbyPlayers(){
+  const vals=Object.entries(players);
+  document.getElementById('lobbyCount').textContent=vals.length + ' joueur' + (vals.length>1?'s':'');
+  const grid=document.getElementById('playersGrid');
+  if(!vals.length){ grid.innerHTML='<div class="notice" style="grid-column:span 2;text-align:center">En attente des joueurs...</div>'; document.getElementById('startBtn').classList.add('hidden'); return; }
+  grid.innerHTML=vals.map(([id,p],i)=>`<div class="player"><div class="name">${p.nom}</div><div class="meta">${p.statut||'ready'}</div></div>`).join('');
+  document.getElementById('startBtn').classList.toggle('hidden', vals.length<2);
+}
+
+async function startGame(){
+  const ids=Object.keys(players);
+  if(ids.length<2) return alert('Il faut au moins 2 joueurs.');
+  await sessionRef.update({statut:'playing', roundIndex:0, currentRound:null});
+  await launchRound(0);
+  listenLive();
+  go('live');
+}
+
+function listenLive(){
+  sessionRef.on('value', snap=>{
+    const data=snap.val(); if(!data) return;
+    players=data.joueurs||{};
+    renderLive(data);
+    if(data.statut==='done') renderResults(data);
+  });
+  sessionRef.child('activity').limitToLast(20).on('value', snap=>{
+    const obj=snap.val()||{};
+    activity=Object.values(obj).sort((a,b)=>(b.at||0)-(a.at||0));
+    renderActivity();
+  });
+}
+
+async function launchRound(roundIndex){
+  const ids=Object.keys(players);
+  const actorId=ids[roundIndex % ids.length];
+  const actorName=players[actorId]?.nom || 'Acteur';
+  const card=chooseCard();
+  const round={ index: roundIndex, actorId, actorName, ...card, answers:{}, startedAt:Date.now() };
+  await sessionRef.child('currentRound').set(round);
+  await sessionRef.update({statut:'playing', roundIndex, remainingTime: card.timeLimit});
+  Object.keys(players).forEach(pid=>sessionRef.child('joueurs/'+pid+'/statut').set(pid===actorId ? 'acteur':'attente'));
+  startTimer(card.timeLimit);
+}
+
+let timerRef=null;
+function startTimer(t){
+  clearInterval(timerRef);
+  let time=t;
+  document.getElementById('stTime').textContent=time;
+  timerRef=setInterval(async ()=>{
+    time--;
+    document.getElementById('stTime').textContent=time;
+    await sessionRef.update({remainingTime: time});
+    if(time<=0){ clearInterval(timerRef); await finalizeRound(); }
+  },1000);
+}
+
+async function finalizeRound(){
+  const snap=await sessionRef.get(); const data=snap.val(); if(!data || !data.currentRound) return;
+  const round=data.currentRound, answers=round.answers||{};
+  const updates={};
+  Object.entries(players).forEach(([pid,p])=>{
+    let score=p.score||0, reponses=p.reponses||0, acted=p.acted||0;
+    if(pid===round.actorId){ acted+=1; if(Object.keys(answers).length===0 || !Object.values(answers).some(a=>a.choice===round.pathologie)) score+=15; else score+=5; updates['joueurs/'+pid+'/acted']=acted; }
+    else if(answers[pid]){ reponses+=1; if(answers[pid].choice===round.pathologie){ score+=10; } updates['joueurs/'+pid+'/reponses']=reponses; }
+    updates['joueurs/'+pid+'/score']=score;
+    updates['joueurs/'+pid+'/statut']='done';
+  });
+  updates['lastResult']={ correct: round.pathologie, actor: round.actorName };
+  updates['remainingTime']=0;
+  await sessionRef.update(updates);
+}
+
+function renderLive(data){
+  const round=data.currentRound;
+  document.getElementById('stPlayers').textContent=Object.keys(players).length;
+  document.getElementById('stRound').textContent=(data.roundIndex||0)+1;
+  document.getElementById('livePhase').textContent='Manche ' + ((data.roundIndex||0)+1);
+  document.getElementById('stAnswers').textContent=round ? Object.keys(round.answers||{}).length : 0;
+  if(round){
+    document.getElementById('currentActor').textContent='Acteur : ' + round.actorName;
+    document.getElementById('currentMission').textContent=round.mission;
+    document.getElementById('currentHint').textContent='Indice : ' + round.indice;
+  }
+  const rank=Object.values(players).sort((a,b)=>(b.score||0)-(a.score||0));
+  document.getElementById('scoreList').innerHTML=rank.map((p,i)=>`<div class="rowItem"><div><strong>#${i+1}</strong> ${p.nom}<div class="notice">${p.reponses||0} réponses · ${p.acted||0} missions jouées</div></div><div class="pts">${p.score||0}</div></div>`).join('');
+}
+
+function renderActivity(){
+  const el=document.getElementById('activityList');
+  if(!activity.length) { el.innerHTML='<div class="notice">Aucune activité pour l’instant.</div>'; return; }
+  el.innerHTML=activity.slice(0,15).map(a=>`<div class="rowItem"><div>${a.emoji||'🎯'} ${a.nom} — ${a.question}</div><div>${a.correct?'✅':'❌'}</div></div>`).join('');
+}
+
+async function nextRound(){
+  const snap=await sessionRef.get(); const data=snap.val(); if(!data) return;
+  const ids=Object.keys(players); if((data.roundIndex||0)+1 >= ids.length * qPerPlayer) return finishGame();
+  await launchRound((data.roundIndex||0)+1);
+}
+
+async function finishGame(){
+  clearInterval(timerRef);
+  await sessionRef.update({statut:'done'});
+}
+
+function renderResults(data){
+  go('results');
+  const rank=Object.values(players).sort((a,b)=>(b.score||0)-(a.score||0));
+  document.getElementById('resultsMeta').textContent=`${Object.keys(players).length} joueurs · ${qPerPlayer} questions par joueur · code ${sessionCode}`;
+  document.getElementById('podium').innerHTML=rank.map((p,i)=>`<div class="podium ${i===0?'first':''}"><div><div class="white" style="font-weight:900">#${i+1} ${p.nom}</div><div class="notice" style="color:rgba(255,255,255,.7)">${p.reponses||0} réponses · ${p.acted||0} missions</div></div><div class="pts">${p.score||0}</div></div>`).join('');
+}
+
+function resetToSetup(){ if(sessionRef) sessionRef.off(); sessionCode=null; players={}; activity=[]; go('setup'); }
+</script>
+</body>
+</html>
