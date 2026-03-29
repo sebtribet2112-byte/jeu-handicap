@@ -91,7 +91,14 @@ if(t<=0) clearInterval(interval);
 }
 
 function sendGuess(){
-alert("Réponse envoyée !");
+const guess = document.getElementById("guess").value;
+
+if(guess.toLowerCase() === (window.currentAnswer || "").toLowerCase()){
+alert("✅ Bonne réponse !");
+}else{
+alert("❌ Mauvaise réponse");
 }
+}
+
 </script></body>
 </html>
