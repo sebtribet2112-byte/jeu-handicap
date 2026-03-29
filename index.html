@@ -44,15 +44,41 @@ startTimer();
 }
 
 function generateMission(){
-const missions = [
-"Lis un texte avec des chiffres qui te perturbent",
-"Parle en changeant de mot toutes les 2 secondes",
-"Lis en tremblant",
-"Lis avec des mots inversés",
-"Lis en sautant des mots"
+
+const data = [
+{
+pathologie: "Dyslexie",
+mission: "Lis ce texte à voix haute : 'aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8'"
+},
+{
+pathologie: "TDAH",
+mission: "Lis un texte mais change de mot toutes les 2 secondes"
+},
+{
+pathologie: "Anxiété",
+mission: "Lis rapidement comme si tu étais stressé"
+},
+{
+pathologie: "Fatigue chronique",
+mission: "Lis très lentement avec des pauses"
+},
+{
+pathologie: "Trouble de concentration",
+mission: "Lis en t'arrêtant souvent comme si tu perdais le fil"
+}
 ];
+
+const random = data[Math.floor(Math.random()*data.length)];
+
+if(role==="acteur"){
 document.getElementById("mission").innerText =
-role==="acteur" ? missions[Math.floor(Math.random()*missions.length)] : "Devine la pathologie";
+"🎭 Mission : " + random.mission;
+window.currentAnswer = random.pathologie;
+}else{
+document.getElementById("mission").innerText =
+"🧠 Devine la pathologie !";
+}
+
 }
 
 function startTimer(){
