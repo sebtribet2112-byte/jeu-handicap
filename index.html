@@ -1,497 +1,137 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Jeu Handicap Invisible</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #08142f;
-      color: white;
-      margin: 0;
-      padding: 20px;
-      text-align: center;
-    }
-    .box {
-      background: #1a2745;
-      border-radius: 18px;
-      padding: 18px;
-      margin: 14px auto;
-      max-width: 700px;
-    }
-    input, button, select {
-      font-size: 18px;
-      padding: 12px;
-      border-radius: 12px;
-      border: none;
-      margin: 6px;
-    }
-    input {
-      width: 220px;
-      max-width: 90%;
-    }
-    button {
-      cursor: pointer;
-      background: #f0f0f0;
-    }
-    .big {
-      font-size: 30px;
-      font-weight: bold;
-    }
-    .hidden {
-      display: none;
-    }
-    .choiceBtn {
-      display: block;
-      width: 100%;
-      max-width: 500px;
-      margin: 8px auto;
-      background: #243555;
-      color: white;
-      border: 1px solid #3f5c93;
-    }
-    .good {
-      background: #1f6f3a !important;
-    }
-    .bad {
-      background: #7b1e1e !important;
-    }
-    .small {
-      font-size: 14px;
-      color: #cfd8ff;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jeu Handicap Invisible</title>
+
+<style>
+body{
+  font-family:Arial;
+  background:#0b1d2a;
+  color:white;
+  text-align:center;
+  padding:20px;
+}
+
+.card{
+  background:#162b3a;
+  padding:20px;
+  border-radius:15px;
+  margin-top:20px;
+}
+
+button{
+  padding:12px 20px;
+  border:none;
+  border-radius:10px;
+  margin:10px;
+  font-size:16px;
+  cursor:pointer;
+}
+
+.choice{
+  display:block;
+  width:100%;
+  margin:10px 0;
+}
+
+.correct{background:green;}
+.wrong{background:red;}
+
+#next{
+  display:none;
+  background:orange;
+}
+</style>
 </head>
+
 <body>
-  <h1>🎯 Jeu Handicap Invisible</h1>
-
-  <div id="home" class="box">
-    <div>
-      <input id="nickname" placeholder="Ton prénom / pseudo" />
-    </div>
-    <div>
-      <button onclick="createSession()">Créer une session</button>
-    </div>
-    <div>
-      <input id="joinCode" placeholder="Code session" maxlength="6" />
-      <button onclick="joinSession()">Rejoindre</button>
-    </div>
-    <div class="small">Un joueur devient acteur. Les autres doivent deviner la pathologie.</div>
-  </div>
-
-  <div id="lobby" class="box hidden">
-    <div class="big">Code : <span id="sessionCodeText"></span></div>
-    <div>Ton rôle : <span id="myRoleText"></span></div>
-    <div>Joueurs connectés :</div>
-    <div id="playersList"></div>
-    <div id="hostControls" class="hidden">
-      <button onclick="startRound()">Lancer la manche</button>
-    </div>
-  </div>
-
-  <div id="game" class="box hidden">
-    <div class="big">⏱️ <span id="timer">30</span></div>
-    <div>Acteur : <span id="actorName"></span></div>
-    <div id="missionBox" class="box hidden"></div>
-    <div id="guessBox" class="hidden">
-      <div class="big">🧠 Devine la pathologie</div>
-      <div id="choices"></div>
-    </div>
-    <div id="roundInfo" class="small"></div>
-  </div>
-
-  <div id="result" class="box hidden">
-    <div class="big">Résultat</div>
-    <div id="resultText"></div>
-    <div id="scoreboard"></div>
-    <div id="nextControls" class="hidden">
-      <button onclick="nextRound()">Manche suivante</button>
-    </div>
-  </div>
-
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-
-  <script>
-    // === REMPLACE SI BESOIN PAR TES VALEURS FIREBASE ===
-    const firebaseConfig = {
-      apiKey: "REMPLACE_API_KEY",
-      authDomain: "REMPLACE_AUTH_DOMAIN",
-      databaseURL: "REMPLACE_DATABASE_URL",
-      projectId: "REMPLACE_PROJECT_ID",
-      storageBucket: "REMPLACE_STORAGE_BUCKET",
-      messagingSenderId: "REMPLACE_MESSAGING_SENDER_ID",
-      appId: "REMPLACE_APP_ID"
-    };
-
-    // Si tu veux aller vite, colle ici exactement les valeurs de ta config Firebase.
-    // databaseURL = l'URL de ta Realtime Database.
-
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.database();
-
-    const QUESTIONS = [
-      {
-        pathologie: "Dyslexie",
-        mission: "Lis ce texte à voix haute : aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8",
-        choix: ["Dyslexie", "Anxiété", "TDAH", "Fatigue chronique"]
-      },
-      {
-        pathologie: "TDAH",
-        mission: "Lis une phrase mais change de rythme toutes les 2 secondes comme si ton attention partait ailleurs.",
-        choix: ["TDAH", "Dyslexie", "Autisme", "Dépression"]
-      },
-      {
-        pathologie: "Anxiété",
-        mission: "Lis rapidement comme si tu étais stressé et que tu avais peur de te tromper.",
-        choix: ["Anxiété", "Bégaiement", "Dyspraxie", "Narcolepsie"]
-      },
-      {
-        pathologie: "Fatigue chronique",
-        mission: "Lis très lentement avec plusieurs pauses, comme si chaque mot demandait un effort.",
-        choix: ["Fatigue chronique", "TDAH", "TOC", "Dyscalculie"]
-      },
-      {
-        pathologie: "Trouble de concentration",
-        mission: "Lis en t'arrêtant souvent comme si tu perdais le fil au milieu de la phrase.",
-        choix: ["Trouble de concentration", "Phobie sociale", "Bégaiement", "Dysorthographie"]
-      },
-      {
-        pathologie: "Bégaiement",
-        mission: "Parle en répétant volontairement le début de certains mots.",
-        choix: ["Bégaiement", "Autisme", "Narcolepsie", "Dyslexie"]
-      },
-      {
-        pathologie: "Dyspraxie",
-        mission: "Tiens ton téléphone d'une seule main et essaie de taper très lentement comme si le geste était difficile.",
-        choix: ["Dyspraxie", "Dépression", "Anxiété", "TDAH"]
-      },
-      {
-        pathologie: "Dyscalculie",
-        mission: "Compte à rebours de 17 à 0 en retirant 2 à chaque fois, sans te corriger.",
-        choix: ["Dyscalculie", "Dyslexie", "Fatigue chronique", "Trouble de concentration"]
-      },
-      {
-        pathologie: "Autisme",
-        mission: "Réponds aux autres de manière très littérale, sans second degré, pendant la manche.",
-        choix: ["Autisme", "Anxiété", "TOC", "Bégaiement"]
-      },
-      {
-        pathologie: "Phobie sociale",
-        mission: "Lis très doucement comme si parler devant les autres était inconfortable.",
-        choix: ["Phobie sociale", "Narcolepsie", "TDAH", "Dyspraxie"]
-      },
-      {
-        pathologie: "TOC",
-        mission: "Avant chaque phrase, répète la même petite action ou le même mot, comme une vérification obligatoire.",
-        choix: ["TOC", "Anxiété", "Dyslexie", "Fatigue chronique"]
-      },
-      {
-        pathologie: "Narcolepsie",
-        mission: "Commence normalement puis ralentis d'un coup comme si ton énergie tombait brutalement.",
-        choix: ["Narcolepsie", "Dyscalculie", "Autisme", "Trouble de concentration"]
-      }
-    ];
-
-    let uid = null;
-    let currentCode = null;
-    let isHost = false;
-    let myName = "";
-    let currentSessionRef = null;
-
-    const home = document.getElementById("home");
-    const lobby = document.getElementById("lobby");
-    const game = document.getElementById("game");
-    const result = document.getElementById("result");
-
-    auth.signInAnonymously().catch(err => {
-      alert("Erreur Auth Firebase : " + err.message);
-    });
-
-    auth.onAuthStateChanged(user => {
-      if (user) uid = user.uid;
-    });
-
-    function randomCode() {
-      return Math.random().toString(36).substring(2, 8).toUpperCase();
-    }
-
-    function getName() {
-      const value = document.getElementById("nickname").value.trim();
-      if (!value) {
-        alert("Entre un pseudo");
-        return null;
-      }
-      return value;
-    }
-
-    async function createSession() {
-      myName = getName();
-      if (!myName || !uid) return;
-
-      const code = randomCode();
-      currentCode = code;
-      isHost = true;
-
-      const question = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
-
-      await db.ref("sessions/" + code).set({
-        code,
-        hostId: uid,
-        status: "lobby",
-        round: 1,
-        timer: 30,
-        actorId: uid,
-        question,
-        createdAt: Date.now()
-      });
-
-      await db.ref("sessions/" + code + "/players/" + uid).set({
-        name: myName,
-        score: 0,
-        joinedAt: Date.now()
-      });
-
-      subscribeSession(code);
-      showLobby();
-    }
-
-    async function joinSession() {
-      myName = getName();
-      if (!myName || !uid) return;
-
-      const code = document.getElementById("joinCode").value.trim().toUpperCase();
-      if (!code) {
-        alert("Entre un code");
-        return;
-      }
-
-      const snap = await db.ref("sessions/" + code).get();
-      if (!snap.exists()) {
-        alert("Session introuvable");
-        return;
-      }
-
-      currentCode = code;
-      isHost = false;
-
-      await db.ref("sessions/" + code + "/players/" + uid).set({
-        name: myName,
-        score: 0,
-        joinedAt: Date.now()
-      });
-
-      subscribeSession(code);
-      showLobby();
-    }
-
-    function showLobby() {
-      home.classList.add("hidden");
-      game.classList.add("hidden");
-      result.classList.add("hidden");
-      lobby.classList.remove("hidden");
-      document.getElementById("sessionCodeText").innerText = currentCode;
-      document.getElementById("myRoleText").innerText = isHost ? "Animateur / acteur possible" : "Joueur";
-      document.getElementById("hostControls").classList.toggle("hidden", !isHost);
-    }
-
-    function showGame() {
-      lobby.classList.add("hidden");
-      result.classList.add("hidden");
-      game.classList.remove("hidden");
-    }
-
-    function showResult() {
-      game.classList.add("hidden");
-      result.classList.remove("hidden");
-      document.getElementById("nextControls").classList.toggle("hidden", !isHost);
-    }
-
-    function subscribeSession(code) {
-      if (currentSessionRef) currentSessionRef.off();
-      currentSessionRef = db.ref("sessions/" + code);
-
-      currentSessionRef.on("value", snap => {
-        const data = snap.val();
-        if (!data) return;
-
-        const players = data.players || {};
-        renderPlayers(players);
-
-        if (data.status === "lobby") {
-          showLobby();
-        }
-
-        if (data.status === "playing") {
-          renderRound(data, players);
-          showGame();
-        }
-
-        if (data.status === "result") {
-          renderResult(data, players);
-          showResult();
-        }
-      });
-    }
-
-    function renderPlayers(players) {
-      const list = Object.entries(players)
-        .sort((a, b) => (b[1].score || 0) - (a[1].score || 0))
-        .map(([id, p]) => `${p.name} — ${p.score || 0} pts`)
-        .join("<br>");
-      document.getElementById("playersList").innerHTML = list || "Aucun joueur";
-    }
-
-    async function startRound() {
-      if (!currentCode) return;
-
-      const sessionSnap = await db.ref("sessions/" + currentCode).get();
-      const session = sessionSnap.val();
-      const players = Object.keys(session.players || {});
-      if (players.length < 2) {
-        alert("Il faut au moins 2 joueurs");
-        return;
-      }
-
-      const actorId = players[(session.round - 1) % players.length];
-      const question = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
-
-      await db.ref("sessions/" + currentCode + "/guesses").remove();
-
-      await db.ref("sessions/" + currentCode).update({
-        status: "playing",
-        actorId,
-        question,
-        timer: 30,
-        startedAt: Date.now()
-      });
-
-      runTimer(currentCode);
-    }
-
-    function runTimer(code) {
-      let t = 30;
-      const timerRef = setInterval(async () => {
-        const snap = await db.ref("sessions/" + code + "/status").get();
-        if (!snap.exists() || snap.val() !== "playing") {
-          clearInterval(timerRef);
-          return;
-        }
-
-        t--;
-        await db.ref("sessions/" + code + "/timer").set(t);
-
-        if (t <= 0) {
-          clearInterval(timerRef);
-          finishRound();
-        }
-      }, 1000);
-    }
-
-    function renderRound(data, players) {
-      document.getElementById("timer").innerText = data.timer ?? 30;
-      document.getElementById("actorName").innerText = players[data.actorId]?.name || "Acteur";
-      document.getElementById("roundInfo").innerText = "Manche " + (data.round || 1);
-
-      const amActor = uid === data.actorId;
-      const missionBox = document.getElementById("missionBox");
-      const guessBox = document.getElementById("guessBox");
-
-      if (amActor) {
-        missionBox.classList.remove("hidden");
-        guessBox.classList.add("hidden");
-        missionBox.innerHTML = "<div class='big'>🎭 Mission</div><div>" + data.question.mission + "</div>";
-      } else {
-        missionBox.classList.add("hidden");
-        guessBox.classList.remove("hidden");
-
-        const guesses = data.guesses || {};
-        const alreadyGuessed = !!guesses[uid];
-
-        document.getElementById("choices").innerHTML = data.question.choix.map(choice => {
-          return `<button class="choiceBtn" ${alreadyGuessed ? "disabled" : ""} onclick="sendGuess('${escapeQuotes(choice)}')">${choice}</button>`;
-        }).join("");
-      }
-    }
-
-    function escapeQuotes(str) {
-      return str.replace(/'/g, "\\'");
-    }
-
-    async function sendGuess(choice) {
-      const ref = db.ref("sessions/" + currentCode + "/guesses/" + uid);
-      const already = await ref.get();
-      if (already.exists()) return;
-      await ref.set({
-        playerId: uid,
-        choice,
-        at: Date.now()
-      });
-    }
-
-    async function finishRound() {
-      const sessionSnap = await db.ref("sessions/" + currentCode).get();
-      const data = sessionSnap.val();
-      if (!data) return;
-
-      const players = data.players || {};
-      const guesses = data.guesses || {};
-      const correct = data.question.pathologie;
-      const updates = {};
-
-      Object.keys(players).forEach(pid => {
-        let score = players[pid].score || 0;
-        if (pid !== data.actorId && guesses[pid] && guesses[pid].choice === correct) {
-          score += 10;
-        }
-        updates["players/" + pid + "/score"] = score;
-      });
-
-      await db.ref("sessions/" + currentCode).update({
-        ...updates,
-        status: "result",
-        correctAnswer: correct
-      });
-    }
-
-    function renderResult(data, players) {
-      const guesses = data.guesses || {};
-      const correct = data.correctAnswer || data.question.pathologie;
-
-      let html = `<p><b>Bonne réponse :</b> ${correct}</p>`;
-      html += "<p><b>Réponses :</b></p>";
-
-      Object.keys(players).forEach(pid => {
-        if (pid === data.actorId) return;
-        const playerName = players[pid].name;
-        const playerGuess = guesses[pid]?.choice || "Aucune réponse";
-        const ok = playerGuess === correct;
-        html += `<div>${playerName} : ${playerGuess} ${ok ? "✅" : "❌"}</div>`;
-      });
-
-      document.getElementById("resultText").innerHTML = html;
-
-      const board = Object.values(players)
-        .sort((a, b) => (b.score || 0) - (a.score || 0))
-        .map(p => `<div>${p.name} — ${p.score || 0} pts</div>`)
-        .join("");
-
-      document.getElementById("scoreboard").innerHTML = "<p><b>Classement</b></p>" + board;
-    }
-
-    async function nextRound() {
-      const sessionSnap = await db.ref("sessions/" + currentCode).get();
-      const data = sessionSnap.val();
-      if (!data) return;
-
-      await db.ref("sessions/" + currentCode).update({
-        status: "lobby",
-        round: (data.round || 1) + 1
-      });
-    }
-  </script>
+
+<h1>🧠 Jeu Handicap Invisible</h1>
+
+<div class="card">
+  <h2 id="question">Chargement...</h2>
+
+  <div id="choices"></div>
+
+  <button id="next" onclick="nextQuestion()">Suivant</button>
+</div>
+
+<script>
+const QUESTIONS = [
+{
+  mission:"Lis ce texte en bégayant",
+  choix:["Bégaiement","TDAH","Autisme","Dyslexie"],
+  answer:0
+},
+{
+  mission:"Lis très lentement avec pauses",
+  choix:["Fatigue chronique","TDAH","Anxiété","Autisme"],
+  answer:0
+},
+{
+  mission:"Lis rapidement comme stressé",
+  choix:["Anxiété","Dyspraxie","TDAH","Fatigue"],
+  answer:0
+},
+{
+  mission:"Change de rythme en parlant",
+  choix:["TDAH","Autisme","Dyslexie","Phobie"],
+  answer:0
+}
+];
+
+let current = 0;
+
+function showQuestion(){
+  const q = QUESTIONS[current];
+
+  document.getElementById("question").innerText = q.mission;
+
+  const choicesDiv = document.getElementById("choices");
+  choicesDiv.innerHTML = "";
+
+  q.choix.forEach((choice, index)=>{
+    const btn = document.createElement("button");
+    btn.innerText = choice;
+    btn.className = "choice";
+
+    btn.onclick = () => selectAnswer(index, btn);
+
+    choicesDiv.appendChild(btn);
+  });
+
+  document.getElementById("next").style.display = "none";
+}
+
+function selectAnswer(index, btn){
+  const correct = QUESTIONS[current].answer;
+
+  document.querySelectorAll(".choice").forEach(b => b.disabled = true);
+
+  if(index === correct){
+    btn.classList.add("correct");
+  } else {
+    btn.classList.add("wrong");
+  }
+
+  document.getElementById("next").style.display = "block";
+}
+
+function nextQuestion(){
+  current++;
+
+  if(current >= QUESTIONS.length){
+    document.body.innerHTML = "<h1>🎉 Fin du jeu</h1>";
+    return;
+  }
+
+  showQuestion();
+}
+
+showQuestion();
+</script>
+
 </body>
 </html>
