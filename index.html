@@ -121,3 +121,377 @@
       authDomain: "REMPLACE_AUTH_DOMAIN",
       databaseURL: "REMPLACE_DATABASE_URL",
       projectId: "REMPLACE_PROJECT_ID",
+      storageBucket: "REMPLACE_STORAGE_BUCKET",
+      messagingSenderId: "REMPLACE_MESSAGING_SENDER_ID",
+      appId: "REMPLACE_APP_ID"
+    };
+
+    // Si tu veux aller vite, colle ici exactement les valeurs de ta config Firebase.
+    // databaseURL = l'URL de ta Realtime Database.
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    const QUESTIONS = [
+      {
+        pathologie: "Dyslexie",
+        mission: "Lis ce texte à voix haute : aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8",
+        choix: ["Dyslexie", "Anxiété", "TDAH", "Fatigue chronique"]
+      },
+      {
+        pathologie: "TDAH",
+        mission: "Lis une phrase mais change de rythme toutes les 2 secondes comme si ton attention partait ailleurs.",
+        choix: ["TDAH", "Dyslexie", "Autisme", "Dépression"]
+      },
+      {
+        pathologie: "Anxiété",
+        mission: "Lis rapidement comme si tu étais stressé et que tu avais peur de te tromper.",
+        choix: ["Anxiété", "Bégaiement", "Dyspraxie", "Narcolepsie"]
+      },
+      {
+        pathologie: "Fatigue chronique",
+        mission: "Lis très lentement avec plusieurs pauses, comme si chaque mot demandait un effort.",
+        choix: ["Fatigue chronique", "TDAH", "TOC", "Dyscalculie"]
+      },
+      {
+        pathologie: "Trouble de concentration",
+        mission: "Lis en t'arrêtant souvent comme si tu perdais le fil au milieu de la phrase.",
+        choix: ["Trouble de concentration", "Phobie sociale", "Bégaiement", "Dysorthographie"]
+      },
+      {
+        pathologie: "Bégaiement",
+        mission: "Parle en répétant volontairement le début de certains mots.",
+        choix: ["Bégaiement", "Autisme", "Narcolepsie", "Dyslexie"]
+      },
+      {
+        pathologie: "Dyspraxie",
+        mission: "Tiens ton téléphone d'une seule main et essaie de taper très lentement comme si le geste était difficile.",
+        choix: ["Dyspraxie", "Dépression", "Anxiété", "TDAH"]
+      },
+      {
+        pathologie: "Dyscalculie",
+        mission: "Compte à rebours de 17 à 0 en retirant 2 à chaque fois, sans te corriger.",
+        choix: ["Dyscalculie", "Dyslexie", "Fatigue chronique", "Trouble de concentration"]
+      },
+      {
+        pathologie: "Autisme",
+        mission: "Réponds aux autres de manière très littérale, sans second degré, pendant la manche.",
+        choix: ["Autisme", "Anxiété", "TOC", "Bégaiement"]
+      },
+      {
+        pathologie: "Phobie sociale",
+        mission: "Lis très doucement comme si parler devant les autres était inconfortable.",
+        choix: ["Phobie sociale", "Narcolepsie", "TDAH", "Dyspraxie"]
+      },
+      {
+        pathologie: "TOC",
+        mission: "Avant chaque phrase, répète la même petite action ou le même mot, comme une vérification obligatoire.",
+        choix: ["TOC", "Anxiété", "Dyslexie", "Fatigue chronique"]
+      },
+      {
+        pathologie: "Narcolepsie",
+        mission: "Commence normalement puis ralentis d'un coup comme si ton énergie tombait brutalement.",
+        choix: ["Narcolepsie", "Dyscalculie", "Autisme", "Trouble de concentration"]
+      }
+    ];
+
+    let uid = null;
+    let currentCode = null;
+    let isHost = false;
+    let myName = "";
+    let currentSessionRef = null;
+
+    const home = document.getElementById("home");
+    const lobby = document.getElementById("lobby");
+    const game = document.getElementById("game");
+    const result = document.getElementById("result");
+
+    auth.signInAnonymously().catch(err => {
+      alert("Erreur Auth Firebase : " + err.message);
+    });
+
+    auth.onAuthStateChanged(user => {
+      if (user) uid = user.uid;
+    });
+
+    function randomCode() {
+      return Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
+
+    function getName() {
+      const value = document.getElementById("nickname").value.trim();
+      if (!value) {
+        alert("Entre un pseudo");
+        return null;
+      }
+      return value;
+    }
+
+    async function createSession() {
+      myName = getName();
+      if (!myName || !uid) return;
+
+      const code = randomCode();
+      currentCode = code;
+      isHost = true;
+
+      const question = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
+
+      await db.ref("sessions/" + code).set({
+        code,
+        hostId: uid,
+        status: "lobby",
+        round: 1,
+        timer: 30,
+        actorId: uid,
+        question,
+        createdAt: Date.now()
+      });
+
+      await db.ref("sessions/" + code + "/players/" + uid).set({
+        name: myName,
+        score: 0,
+        joinedAt: Date.now()
+      });
+
+      subscribeSession(code);
+      showLobby();
+    }
+
+    async function joinSession() {
+      myName = getName();
+      if (!myName || !uid) return;
+
+      const code = document.getElementById("joinCode").value.trim().toUpperCase();
+      if (!code) {
+        alert("Entre un code");
+        return;
+      }
+
+      const snap = await db.ref("sessions/" + code).get();
+      if (!snap.exists()) {
+        alert("Session introuvable");
+        return;
+      }
+
+      currentCode = code;
+      isHost = false;
+
+      await db.ref("sessions/" + code + "/players/" + uid).set({
+        name: myName,
+        score: 0,
+        joinedAt: Date.now()
+      });
+
+      subscribeSession(code);
+      showLobby();
+    }
+
+    function showLobby() {
+      home.classList.add("hidden");
+      game.classList.add("hidden");
+      result.classList.add("hidden");
+      lobby.classList.remove("hidden");
+      document.getElementById("sessionCodeText").innerText = currentCode;
+      document.getElementById("myRoleText").innerText = isHost ? "Animateur / acteur possible" : "Joueur";
+      document.getElementById("hostControls").classList.toggle("hidden", !isHost);
+    }
+
+    function showGame() {
+      lobby.classList.add("hidden");
+      result.classList.add("hidden");
+      game.classList.remove("hidden");
+    }
+
+    function showResult() {
+      game.classList.add("hidden");
+      result.classList.remove("hidden");
+      document.getElementById("nextControls").classList.toggle("hidden", !isHost);
+    }
+
+    function subscribeSession(code) {
+      if (currentSessionRef) currentSessionRef.off();
+      currentSessionRef = db.ref("sessions/" + code);
+
+      currentSessionRef.on("value", snap => {
+        const data = snap.val();
+        if (!data) return;
+
+        const players = data.players || {};
+        renderPlayers(players);
+
+        if (data.status === "lobby") {
+          showLobby();
+        }
+
+        if (data.status === "playing") {
+          renderRound(data, players);
+          showGame();
+        }
+
+        if (data.status === "result") {
+          renderResult(data, players);
+          showResult();
+        }
+      });
+    }
+
+    function renderPlayers(players) {
+      const list = Object.entries(players)
+        .sort((a, b) => (b[1].score || 0) - (a[1].score || 0))
+        .map(([id, p]) => `${p.name} — ${p.score || 0} pts`)
+        .join("<br>");
+      document.getElementById("playersList").innerHTML = list || "Aucun joueur";
+    }
+
+    async function startRound() {
+      if (!currentCode) return;
+
+      const sessionSnap = await db.ref("sessions/" + currentCode).get();
+      const session = sessionSnap.val();
+      const players = Object.keys(session.players || {});
+      if (players.length < 2) {
+        alert("Il faut au moins 2 joueurs");
+        return;
+      }
+
+      const actorId = players[(session.round - 1) % players.length];
+      const question = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
+
+      await db.ref("sessions/" + currentCode + "/guesses").remove();
+
+      await db.ref("sessions/" + currentCode).update({
+        status: "playing",
+        actorId,
+        question,
+        timer: 30,
+        startedAt: Date.now()
+      });
+
+      runTimer(currentCode);
+    }
+
+    function runTimer(code) {
+      let t = 30;
+      const timerRef = setInterval(async () => {
+        const snap = await db.ref("sessions/" + code + "/status").get();
+        if (!snap.exists() || snap.val() !== "playing") {
+          clearInterval(timerRef);
+          return;
+        }
+
+        t--;
+        await db.ref("sessions/" + code + "/timer").set(t);
+
+        if (t <= 0) {
+          clearInterval(timerRef);
+          finishRound();
+        }
+      }, 1000);
+    }
+
+    function renderRound(data, players) {
+      document.getElementById("timer").innerText = data.timer ?? 30;
+      document.getElementById("actorName").innerText = players[data.actorId]?.name || "Acteur";
+      document.getElementById("roundInfo").innerText = "Manche " + (data.round || 1);
+
+      const amActor = uid === data.actorId;
+      const missionBox = document.getElementById("missionBox");
+      const guessBox = document.getElementById("guessBox");
+
+      if (amActor) {
+        missionBox.classList.remove("hidden");
+        guessBox.classList.add("hidden");
+        missionBox.innerHTML = "<div class='big'>🎭 Mission</div><div>" + data.question.mission + "</div>";
+      } else {
+        missionBox.classList.add("hidden");
+        guessBox.classList.remove("hidden");
+
+        const guesses = data.guesses || {};
+        const alreadyGuessed = !!guesses[uid];
+
+        document.getElementById("choices").innerHTML = data.question.choix.map(choice => {
+          return `<button class="choiceBtn" ${alreadyGuessed ? "disabled" : ""} onclick="sendGuess('${escapeQuotes(choice)}')">${choice}</button>`;
+        }).join("");
+      }
+    }
+
+    function escapeQuotes(str) {
+      return str.replace(/'/g, "\\'");
+    }
+
+    async function sendGuess(choice) {
+      const ref = db.ref("sessions/" + currentCode + "/guesses/" + uid);
+      const already = await ref.get();
+      if (already.exists()) return;
+      await ref.set({
+        playerId: uid,
+        choice,
+        at: Date.now()
+      });
+    }
+
+    async function finishRound() {
+      const sessionSnap = await db.ref("sessions/" + currentCode).get();
+      const data = sessionSnap.val();
+      if (!data) return;
+
+      const players = data.players || {};
+      const guesses = data.guesses || {};
+      const correct = data.question.pathologie;
+      const updates = {};
+
+      Object.keys(players).forEach(pid => {
+        let score = players[pid].score || 0;
+        if (pid !== data.actorId && guesses[pid] && guesses[pid].choice === correct) {
+          score += 10;
+        }
+        updates["players/" + pid + "/score"] = score;
+      });
+
+      await db.ref("sessions/" + currentCode).update({
+        ...updates,
+        status: "result",
+        correctAnswer: correct
+      });
+    }
+
+    function renderResult(data, players) {
+      const guesses = data.guesses || {};
+      const correct = data.correctAnswer || data.question.pathologie;
+
+      let html = `<p><b>Bonne réponse :</b> ${correct}</p>`;
+      html += "<p><b>Réponses :</b></p>";
+
+      Object.keys(players).forEach(pid => {
+        if (pid === data.actorId) return;
+        const playerName = players[pid].name;
+        const playerGuess = guesses[pid]?.choice || "Aucune réponse";
+        const ok = playerGuess === correct;
+        html += `<div>${playerName} : ${playerGuess} ${ok ? "✅" : "❌"}</div>`;
+      });
+
+      document.getElementById("resultText").innerHTML = html;
+
+      const board = Object.values(players)
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .map(p => `<div>${p.name} — ${p.score || 0} pts</div>`)
+        .join("");
+
+      document.getElementById("scoreboard").innerHTML = "<p><b>Classement</b></p>" + board;
+    }
+
+    async function nextRound() {
+      const sessionSnap = await db.ref("sessions/" + currentCode).get();
+      const data = sessionSnap.val();
+      if (!data) return;
+
+      await db.ref("sessions/" + currentCode).update({
+        status: "lobby",
+        round: (data.round || 1) + 1
+      });
+    }
+  </script>
+</body>
+</html>
