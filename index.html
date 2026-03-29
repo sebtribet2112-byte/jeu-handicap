@@ -1,98 +1,123 @@
-<!DOCTYPE html><html lang="fr">
+<!DOCTYPE html>
+<html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Jeu Handicap Invisible</title><style>
-body { font-family: Arial; text-align:center; background:#0f172a; color:white; }
-button { padding:15px; margin:10px; font-size:18px; border-radius:10px; }
-.card { margin:20px; padding:20px; background:#1e293b; border-radius:15px; }
-input { padding:10px; font-size:16px; }
-</style></head><body><h1>🎯 Jeu Handicap Invisible</h1><div id="menu">
-<button onclick="createGame()">Créer une session</button><br>
-<input id="codeInput" placeholder="Code session">
-<button onclick="joinGame()">Rejoindre</button>
-</div><div id="game" style="display:none;">
-<h2 id="role"></h2>
-<div class="card" id="mission"></div><input id="guess" placeholder="Votre réponse">
-<button onclick="sendGuess()">Envoyer</button><div id="timer"></div>
-</div><script>
-let role="";
-let currentAnswer="";
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jeu Handicap Invisible</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #08142f;
+      color: white;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    .box {
+      background: #1a2745;
+      border-radius: 18px;
+      padding: 18px;
+      margin: 14px auto;
+      max-width: 700px;
+    }
+    input, button, select {
+      font-size: 18px;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      margin: 6px;
+    }
+    input {
+      width: 220px;
+      max-width: 90%;
+    }
+    button {
+      cursor: pointer;
+      background: #f0f0f0;
+    }
+    .big {
+      font-size: 30px;
+      font-weight: bold;
+    }
+    .hidden {
+      display: none;
+    }
+    .choiceBtn {
+      display: block;
+      width: 100%;
+      max-width: 500px;
+      margin: 8px auto;
+      background: #243555;
+      color: white;
+      border: 1px solid #3f5c93;
+    }
+    .good {
+      background: #1f6f3a !important;
+    }
+    .bad {
+      background: #7b1e1e !important;
+    }
+    .small {
+      font-size: 14px;
+      color: #cfd8ff;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎯 Jeu Handicap Invisible</h1>
 
-function createGame(){
-role="acteur";
-startGame();
-}
+  <div id="home" class="box">
+    <div>
+      <input id="nickname" placeholder="Ton prénom / pseudo" />
+    </div>
+    <div>
+      <button onclick="createSession()">Créer une session</button>
+    </div>
+    <div>
+      <input id="joinCode" placeholder="Code session" maxlength="6" />
+      <button onclick="joinSession()">Rejoindre</button>
+    </div>
+    <div class="small">Un joueur devient acteur. Les autres doivent deviner la pathologie.</div>
+  </div>
 
-function joinGame(){
-role="joueur";
-startGame();
-}
+  <div id="lobby" class="box hidden">
+    <div class="big">Code : <span id="sessionCodeText"></span></div>
+    <div>Ton rôle : <span id="myRoleText"></span></div>
+    <div>Joueurs connectés :</div>
+    <div id="playersList"></div>
+    <div id="hostControls" class="hidden">
+      <button onclick="startRound()">Lancer la manche</button>
+    </div>
+  </div>
 
-function startGame(){
-document.getElementById("menu").style.display="none";
-document.getElementById("game").style.display="block";
-document.getElementById("role").innerText = role==="acteur" ? "🎭 Tu fais deviner" : "🧠 Devine";
-generateMission();
-startTimer();
-}
+  <div id="game" class="box hidden">
+    <div class="big">⏱️ <span id="timer">30</span></div>
+    <div>Acteur : <span id="actorName"></span></div>
+    <div id="missionBox" class="box hidden"></div>
+    <div id="guessBox" class="hidden">
+      <div class="big">🧠 Devine la pathologie</div>
+      <div id="choices"></div>
+    </div>
+    <div id="roundInfo" class="small"></div>
+  </div>
 
-function generateMission(){
+  <div id="result" class="box hidden">
+    <div class="big">Résultat</div>
+    <div id="resultText"></div>
+    <div id="scoreboard"></div>
+    <div id="nextControls" class="hidden">
+      <button onclick="nextRound()">Manche suivante</button>
+    </div>
+  </div>
 
-const data = [
-{
-pathologie: "Dyslexie",
-mission: "Lis : aujourb''hui et bemain qour 10 la meteo 9 il fera deau 8"
-},
-{
-pathologie: "TDAH",
-mission: "Lis en changeant de mot toutes les 2 secondes"
-},
-{
-pathologie: "Anxiété",
-mission: "Lis comme si tu étais stressé"
-},
-{
-pathologie: "Fatigue chronique",
-mission: "Lis très lentement avec pauses"
-},
-{
-pathologie: "Trouble de concentration",
-mission: "Lis en t’arrêtant souvent"
-}
-];
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
-const random = data[Math.floor(Math.random()*data.length)];
-
-currentAnswer = random.pathologie;
-
-if(role==="acteur"){
-document.getElementById("mission").innerText =
-"🎭 Mission : " + random.mission;
-}else{
-document.getElementById("mission").innerText =
-"🧠 Devine la pathologie";
-}
-
-}
-
-function sendGuess(){
-const guess = document.getElementById("guess").value.toLowerCase();
-
-if(guess === currentAnswer.toLowerCase()){
-alert("✅ Bonne réponse !");
-}else{
-alert("❌ Mauvaise réponse : " + currentAnswer);
-}
-}
-
-function startTimer(){
-let t=30;
-let interval=setInterval(()=>{
-document.getElementById("timer").innerText="⏱️ "+t;
-t--;
-if(t<=0) clearInterval(interval);
-},1000);
-}
-</script></body>
-</html>
+  <script>
+    // === REMPLACE SI BESOIN PAR TES VALEURS FIREBASE ===
+    const firebaseConfig = {
+      apiKey: "REMPLACE_API_KEY",
+      authDomain: "REMPLACE_AUTH_DOMAIN",
+      databaseURL: "REMPLACE_DATABASE_URL",
+      projectId: "REMPLACE_PROJECT_ID",
