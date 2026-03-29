@@ -1,0 +1,71 @@
+<!DOCTYPE html><html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jeu Handicap Invisible</title>
+<style>
+body { font-family: Arial; text-align:center; background:#0f172a; color:white; }
+button { padding:15px; margin:10px; font-size:18px; border-radius:10px; }
+.card { margin:20px; padding:20px; background:#1e293b; border-radius:15px; }
+</style>
+</head>
+<body><h1>🎯 Jeu Handicap Invisible</h1><div id="menu">
+<button onclick="createGame()">Créer une session</button>
+<input id="codeInput" placeholder="Code session">
+<button onclick="joinGame()">Rejoindre</button>
+</div><div id="game" style="display:none;">
+<h2 id="role"></h2>
+<div class="card" id="mission"></div>
+<input id="guess" placeholder="Votre réponse">
+<button onclick="sendGuess()">Envoyer</button>
+<div id="timer"></div>
+</div><script>
+let session = "";
+let role = "";
+
+function createGame(){
+session = Math.random().toString(36).substring(2,6);
+role = "acteur";
+startGame();
+}
+
+function joinGame(){
+session = document.getElementById("codeInput").value;
+role = "joueur";
+startGame();
+}
+
+function startGame(){
+document.getElementById("menu").style.display="none";
+document.getElementById("game").style.display="block";
+document.getElementById("role").innerText = role==="acteur" ? "🎭 Tu fais deviner" : "🧠 Devine";
+generateMission();
+startTimer();
+}
+
+function generateMission(){
+const missions = [
+"Lis un texte avec des chiffres qui te perturbent",
+"Parle en changeant de mot toutes les 2 secondes",
+"Lis en tremblant",
+"Lis avec des mots inversés",
+"Lis en sautant des mots"
+];
+document.getElementById("mission").innerText =
+role==="acteur" ? missions[Math.floor(Math.random()*missions.length)] : "Devine la pathologie";
+}
+
+function startTimer(){
+let t=30;
+let interval=setInterval(()=>{
+document.getElementById("timer").innerText="⏱️ "+t;
+t--;
+if(t<=0) clearInterval(interval);
+},1000);
+}
+
+function sendGuess(){
+alert("Réponse envoyée !");
+}
+</script></body>
+</html>
